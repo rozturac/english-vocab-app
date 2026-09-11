@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DAYS, THEMES, VOCAB } from './data/vocab';
 import { boldPhrase } from './lib/example';
-import { answersMatch } from './lib/normalize';
 import { stopSpeaking } from './lib/speech';
 import {
   buildDailyQueue,
@@ -17,6 +16,8 @@ import { SpeakButton } from './components/SpeakButton';
 import { StatsBar } from './components/StatsBar';
 import './App.css';
 
+type StudyDir = 'tr2en' | 'en2tr';
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -26,28 +27,45 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function trOptions(item: VocabItem, pool: VocabItem[]): string[] {
-  const correct = item.tr;
-  const others = shuffle(pool.filter((x) => x.tr !== correct))
+/** EN→TR: prefer full Turkish sentence options when 3 distractors exist. */
+function buildTrOptions(item: VocabItem, pool: VocabItem[]): { options: string[]; correct: string } {
+  if (item.exTr) {
+    const others = shuffle(pool.filter((x) => x.exTr && x.exTr !== item.exTr))
+      .slice(0, 3)
+      .map((x) => x.exTr);
+    if (others.length === 3) {
+      return { options: shuffle([item.exTr, ...others]), correct: item.exTr };
+    }
+  }
+  const others = shuffle(pool.filter((x) => x.tr !== item.tr))
     .slice(0, 3)
     .map((x) => x.tr);
-  return shuffle([correct, ...others]);
+  return { options: shuffle([item.tr, ...others]), correct: item.tr };
+}
+
+/** TR→EN: pick English target phrase among distractors from other items' en. */
+function buildEnOptions(item: VocabItem, pool: VocabItem[]): { options: string[]; correct: string } {
+  const others = shuffle(pool.filter((x) => x.en !== item.en))
+    .slice(0, 3)
+    .map((x) => x.en);
+  return { options: shuffle([item.en, ...others]), correct: item.en };
 }
 
 export default function App() {
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
   const [day, setDay] = useState<number | ''>('');
   const [theme, setTheme] = useState('');
+  const [dir, setDir] = useState<StudyDir>('tr2en');
   const [queue, setQueue] = useState<VocabItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null);
   const [options, setOptions] = useState<string[]>([]);
+  const [correctAnswer, setCorrectAnswer] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [sessionDone, setSessionDone] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
 
   const filter = useMemo(
     () => ({
@@ -68,7 +86,6 @@ export default function App() {
       setAnswered(false);
       setWasCorrect(null);
       setSelected(null);
-      setShowTranslation(false);
       setSessionDone(q.length === 0);
       stopSpeaking();
     },
@@ -87,9 +104,12 @@ export default function App() {
     setAnswered(false);
     setWasCorrect(null);
     setSelected(null);
-    setShowTranslation(false);
-    setOptions(trOptions(current, VOCAB));
-  }, [current, idx]);
+    stopSpeaking();
+    const built =
+      dir === 'tr2en' ? buildEnOptions(current, VOCAB) : buildTrOptions(current, VOCAB);
+    setOptions(built.options);
+    setCorrectAnswer(built.correct);
+  }, [current, idx, dir]);
 
   const advance = useCallback(
     (correct: boolean) => {
@@ -110,14 +130,22 @@ export default function App() {
   const chooseOption = useCallback(
     (opt: string) => {
       if (!current || answered) return;
-      const ok = answersMatch(opt, current.tr);
+      const ok = opt === correctAnswer;
       setSelected(opt);
       setWasCorrect(ok);
       setAnswered(true);
-      setShowTranslation(true);
     },
-    [answered, current],
+    [answered, correctAnswer, current],
   );
+
+  const switchDir = useCallback((next: StudyDir) => {
+    if (next === dir) return;
+    setDir(next);
+    setAnswered(false);
+    setWasCorrect(null);
+    setSelected(null);
+    stopSpeaking();
+  }, [dir]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -136,12 +164,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [advance, answered, chooseOption, options, wasCorrect]);
 
+  const subtitle =
+    dir === 'tr2en'
+      ? 'Türkçe cümleyi oku, doğru İngilizce ifadeyi seç'
+      : 'İngilizce cümleyi oku, doğru Türkçe çeviriyi seç';
+
   return (
     <div className="app">
       <header className="header">
         <div>
           <h1>Cümleyle öğren</h1>
-          <p className="sub">Vurgulu ifadenin Türkçe anlamını seç</p>
+          <p className="sub">{subtitle}</p>
         </div>
         <div className="header-actions">
           <button type="button" className="btn ghost" onClick={() => setShowFilters((s) => !s)}>
@@ -161,6 +194,27 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      <div className="dir-tabs" role="tablist" aria-label="Çalışma yönü">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={dir === 'tr2en'}
+          className={'dir-tab' + (dir === 'tr2en' ? ' active' : '')}
+          onClick={() => switchDir('tr2en')}
+        >
+          TR → EN
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={dir === 'en2tr'}
+          className={'dir-tab' + (dir === 'en2tr' ? ' active' : '')}
+          onClick={() => switchDir('en2tr')}
+        >
+          EN → TR
+        </button>
+      </div>
 
       <StatsBar
         streak={stats.streak}
@@ -215,30 +269,19 @@ export default function App() {
       ) : (
         <section className="study">
           <div className="card quiz">
-            <div className="prompt-label">Bu cümlede vurgulu ifade ne anlama geliyor?</div>
-            <div className="sentence">{boldPhrase(current.ex, current.en)}</div>
-
-            <div className="tool-row">
-              <SpeakButton text={current.ex || current.en} label="Dinle" />
-              <button
-                type="button"
-                className="btn ghost reveal-btn"
-                onClick={() => setShowTranslation((s) => !s)}
-              >
-                {showTranslation ? 'Çeviriyi gizle' : 'Çeviriyi göster'}
-              </button>
-            </div>
-
-            {showTranslation && (
-              <div className="translation-panel">
-                <div className="ex-tr">{current.exTr || current.tr}</div>
-                <div className="gloss">
-                  <span className="target">{current.en}</span>
-                  <span className="arrow">→</span>
-                  <span className="tr">{current.tr}</span>
+            {dir === 'tr2en' ? (
+              <>
+                <div className="prompt-label">Bu Türkçe cümleye karşılık gelen İngilizce ifade hangisi?</div>
+                <div className="sentence tr-prompt">{current.exTr || current.tr}</div>
+              </>
+            ) : (
+              <>
+                <div className="prompt-label">Bu cümlede vurgulu ifade ne anlama geliyor?</div>
+                <div className="sentence">{boldPhrase(current.ex, current.en)}</div>
+                <div className="tool-row">
+                  <SpeakButton text={current.ex || current.en} label="Dinle" />
                 </div>
-                {current.morph && <div className="morph">{current.morph}</div>}
-              </div>
+              </>
             )}
 
             <div className="options">
@@ -249,7 +292,7 @@ export default function App() {
                   className={
                     'option' +
                     (answered
-                      ? answersMatch(opt, current.tr)
+                      ? opt === correctAnswer
                         ? ' correct'
                         : selected === opt
                           ? ' wrong'
@@ -260,7 +303,7 @@ export default function App() {
                   onClick={() => chooseOption(opt)}
                 >
                   <span className="num">{i + 1}</span>
-                  {opt}
+                  <span className="opt-text">{opt}</span>
                 </button>
               ))}
             </div>
@@ -268,8 +311,31 @@ export default function App() {
             {answered && (
               <div className={wasCorrect ? 'feedback ok' : 'feedback bad'}>
                 <div className="feedback-title">{wasCorrect ? 'Doğru ✓' : 'Yanlış ✗'}</div>
-                {!wasCorrect && <div className="feedback-answer">Doğru: {current.tr}</div>}
-                <div className="ex-tr">{current.exTr || current.tr}</div>
+                {!wasCorrect && (
+                  <div className="feedback-answer">Doğru: {correctAnswer}</div>
+                )}
+                {dir === 'tr2en' ? (
+                  <>
+                    <div className="sentence reveal-en">{boldPhrase(current.ex, current.en)}</div>
+                    <div className="tool-row">
+                      <SpeakButton text={current.ex || current.en} label="Dinle" />
+                    </div>
+                    <div className="gloss">
+                      <span className="target">{current.en}</span>
+                      <span className="arrow">→</span>
+                      <span className="tr">{current.tr}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="ex-tr">{current.exTr || current.tr}</div>
+                    <div className="gloss">
+                      <span className="target">{current.en}</span>
+                      <span className="arrow">→</span>
+                      <span className="tr">{current.tr}</span>
+                    </div>
+                  </>
+                )}
                 {current.morph && <div className="morph">{current.morph}</div>}
               </div>
             )}
