@@ -2,7 +2,7 @@ import { speakEnglish } from '../lib/speech';
 
 type Props = { text: string; label?: string; className?: string };
 
-export function SpeakButton({ text, label = 'Seslendir', className }: Props) {
+export function SpeakButton({ text, label = 'Dinle', className }: Props) {
   return (
     <button
       type="button"

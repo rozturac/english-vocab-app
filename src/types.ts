@@ -4,6 +4,8 @@ export type VocabItem = {
   en: string;
   tr: string;
   ex: string;
+  /** Optional short morphology tip */
+  morph?: string;
 };
 
 export type StudyMode = 'flash' | 'type' | 'mc' | 'listen';

@@ -1,46 +1,29 @@
-# İngilizce Kelime — Flashcard & Quiz
+# English Vocab App
 
-Türkçe ara seviye öğrenenler için çevrimdışı çalışabilen tek sayfa kelime uygulaması (Vite + React + TypeScript).
+Sentence-first English vocabulary practice (Turkish UI) for intermediate work English + general vocab.
 
-## Çalıştırma
+**Live:** https://rozturac.github.io/english-vocab-app/
+
+## Study modes
+
+- **Kart** — read the full English example (target bold) → reveal Turkish (+ optional morph tip)
+- **Boşluk** — Turkish + cloze sentence; type the phrase
+- **Seç** — cloze sentence; pick the phrase
+- **Dinle** — hear the sentence; pick Turkish meaning
+
+Progress uses Leitner boxes in `localStorage` (card ids: `{day}::{en}`).
+
+## Data
+
+- `src/data/vocab.json` — 1221 items (`d`, `t`, `en`, `tr`, `ex`, optional `morph`)
+- Regenerate examples: `python3 scripts/generate_examples.py` (reads `scripts/curated_examples.json` + `scripts/morph_tips.json`)
+
+## Dev
 
 ```bash
-cd /workspace/english-vocab-app
 npm install
 npm run dev
-```
-
-Tarayıcıda Vite’ın yazdığı adresi aç (genelde `http://localhost:5173/`).
-
-Üretim derlemesi:
-
-```bash
 npm run build
-npm run preview
 ```
 
-## Özellikler
-
-1. **Kartlar** — EN ↔ TR çevir, örnek cümlede ifade kalın, 🔊 Seslendir (Web Speech API, en-US)
-2. **Yazarak quiz** — TR gör, EN yaz (büyük/küçük harf ve noktalama yok sayılır)
-3. **Çoktan seçmeli** — 4 seçenek
-4. **Dinle** — EN ses, TR seç
-5. **Günlük 8 yeni + Leitner tekrar** — progress `localStorage`’da
-6. **Gün / tema filtresi**, istatistikler (öğrenilen, vadesi gelen, seri)
-7. **Arayüz Türkçe**, mobil uyumlu, kısayollar: Space çevir, Enter onay, 1–4 seçenek
-
-## Veri
-
-- Kaynak: `/workspace/vocab_slim.json` (1221 ifade, gün 1–63)
-- Uygulama verisi: `src/data/vocab.json` (`ex` örnek cümleleri dahil)
-- Örnek cümleleri yeniden üretmek için: `python3 scripts/generate_examples.py`
-
-## Notlar / sınırlar
-
-- Ses için tarayıcıda `speechSynthesis` gerekir (Chrome/Edge/Safari genelde tamam).
-- İlerleme yalnızca bu tarayıcının localStorage’ında tutulur.
-- Örnek cümleler script + curated liste ile üretilmiştir; bazı genel kelimelerde şablon tadı kalabilir — `scripts/curated_examples.json` ile iyileştirilebilir.
-
-## Live
-
-https://rozturac.github.io/english-vocab-app/
+GitHub Pages base path: `/english-vocab-app/`

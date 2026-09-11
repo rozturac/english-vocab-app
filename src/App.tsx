@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DAYS, THEMES, VOCAB } from './data/vocab';
-import { boldPhrase } from './lib/example';
+import { blankPhrase, boldPhrase } from './lib/example';
 import { answersMatch } from './lib/normalize';
 import { speakEnglish, stopSpeaking } from './lib/speech';
 import {
@@ -28,7 +28,9 @@ function shuffle<T>(arr: T[]): T[] {
 
 function mcOptions(item: VocabItem, pool: VocabItem[], field: 'en' | 'tr'): string[] {
   const correct = item[field];
-  const others = shuffle(pool.filter((x) => x[field] !== correct)).slice(0, 3).map((x) => x[field]);
+  const others = shuffle(pool.filter((x) => x[field] !== correct))
+    .slice(0, 3)
+    .map((x) => x[field]);
   return shuffle([correct, ...others]);
 }
 
@@ -36,7 +38,7 @@ export default function App() {
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
   const [mode, setMode] = useState<StudyMode>('flash');
   const [day, setDay] = useState<number | ''>('');
-  const [theme, setTheme] = useState<string>('');
+  const [theme, setTheme] = useState('');
   const [queue, setQueue] = useState<VocabItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -46,6 +48,7 @@ export default function App() {
   const [options, setOptions] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [sessionDone, setSessionDone] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const filter = useMemo(
     () => ({
@@ -92,8 +95,7 @@ export default function App() {
       setOptions(mcOptions(current, VOCAB, 'en'));
     } else if (mode === 'listen') {
       setOptions(mcOptions(current, VOCAB, 'tr'));
-      // auto-speak after short delay
-      const t = window.setTimeout(() => speakEnglish(current.en), 250);
+      const t = window.setTimeout(() => speakEnglish(current.ex || current.en), 250);
       return () => window.clearTimeout(t);
     }
   }, [current, mode, idx]);
@@ -119,7 +121,7 @@ export default function App() {
     const ok = answersMatch(typed, current.en);
     setWasCorrect(ok);
     setAnswered(true);
-    if (ok) speakEnglish(current.en);
+    if (ok) speakEnglish(current.ex || current.en);
   }, [answered, current, typed]);
 
   const chooseOption = useCallback(
@@ -130,7 +132,7 @@ export default function App() {
       setSelected(opt);
       setWasCorrect(ok);
       setAnswered(true);
-      if (mode !== 'listen') speakEnglish(current.en);
+      if (mode !== 'listen') speakEnglish(current.ex || current.en);
     },
     [answered, current, mode],
   );
@@ -141,11 +143,8 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         if (e.key === 'Enter' && mode === 'type') {
           e.preventDefault();
-          if (answered) {
-            advance(!!wasCorrect);
-          } else {
-            submitTyped();
-          }
+          if (answered) advance(!!wasCorrect);
+          else submitTyped();
         }
         return;
       }
@@ -156,7 +155,6 @@ export default function App() {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (mode === 'flash') {
-          // Enter = knew it when flipped, or flip first
           if (!flipped) setFlipped(true);
           else advance(true);
         } else if (answered) {
@@ -165,7 +163,11 @@ export default function App() {
           submitTyped();
         }
       }
-      if ((e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') && (mode === 'mc' || mode === 'listen') && !answered) {
+      if (
+        (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') &&
+        (mode === 'mc' || mode === 'listen') &&
+        !answered
+      ) {
         const i = Number(e.key) - 1;
         if (options[i]) chooseOption(options[i]);
       }
@@ -175,9 +177,9 @@ export default function App() {
   }, [advance, answered, chooseOption, flipped, mode, options, submitTyped, wasCorrect]);
 
   const modes: { id: StudyMode; label: string }[] = [
-    { id: 'flash', label: 'Kartlar' },
-    { id: 'type', label: 'Yazarak' },
-    { id: 'mc', label: 'Çoktan seçmeli' },
+    { id: 'flash', label: 'Kart' },
+    { id: 'type', label: 'Boşluk' },
+    { id: 'mc', label: 'Seç' },
     { id: 'listen', label: 'Dinle' },
   ];
 
@@ -185,8 +187,8 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div>
-          <h1>İngilizce Kelime</h1>
-          <p className="sub">Ara seviye · flashcard + quiz · çevrimdışı</p>
+          <h1>Cümleyle öğren</h1>
+          <p className="sub">Hedef ifade cümlede kalın · basit çalışma</p>
         </div>
         <button
           type="button"
@@ -203,112 +205,115 @@ export default function App() {
       </header>
 
       <StatsBar
-        learned={stats.learned}
-        due={stats.due}
         streak={stats.streak}
-        total={stats.total}
+        idx={sessionDone ? Math.max(queue.length - 1, 0) : idx}
         queueLen={queue.length}
+        due={stats.due}
       />
 
-      <div className="filters">
-        <label>
-          Gün
-          <select value={day} onChange={(e) => setDay(e.target.value === '' ? '' : Number(e.target.value))}>
-            <option value="">Tümü</option>
-            {DAYS.map((d) => (
-              <option key={d} value={d}>
-                Gün {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Tema
-          <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-            <option value="">Tümü</option>
-            {THEMES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="btn secondary" onClick={() => rebuild()}>
-          Kuyruğu yenile
-        </button>
-      </div>
-
-      <nav className="modes" aria-label="Çalışma modu">
+      <div className="mode-row">
         {modes.map((m) => (
           <button
             key={m.id}
             type="button"
-            className={mode === m.id ? 'mode active' : 'mode'}
+            className={mode === m.id ? 'chip active' : 'chip'}
             onClick={() => setMode(m.id)}
           >
             {m.label}
           </button>
         ))}
-      </nav>
+        <button type="button" className="chip ghost" onClick={() => setShowFilters((s) => !s)}>
+          Filtre
+        </button>
+      </div>
+
+      {showFilters && (
+        <div className="filters">
+          <label>
+            Gün
+            <select
+              value={day}
+              onChange={(e) => setDay(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <option value="">Tümü</option>
+              {DAYS.map((d) => (
+                <option key={d} value={d}>
+                  Gün {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Tema
+            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+              <option value="">Tümü</option>
+              {THEMES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn secondary" onClick={() => rebuild()}>
+            Yenile
+          </button>
+        </div>
+      )}
 
       {sessionDone || !current ? (
         <section className="card empty">
-          <h2>Bugünkü kuyruk bitti 🎉</h2>
-          <p>
-            Vadesi gelen kart yok veya filtreye uyan yeni kelime kalmadı. Filtreyi değiştirip
-            &quot;Kuyruğu yenile&quot;ye basabilirsin.
-          </p>
+          <h2>Bu tur bitti</h2>
+          <p>Vadesi gelen veya yeni kart kalmadı. Filtreyi değiştirip yenileyebilirsin.</p>
           <button type="button" className="btn primary" onClick={() => rebuild()}>
             Yenile
           </button>
         </section>
       ) : (
         <section className="study">
-          <div className="meta">
-            <span className="pill">Gün {current.d}</span>
-            <span className="pill muted">{current.t}</span>
-            <span className="pill muted">
-              {idx + 1}/{queue.length}
-            </span>
-          </div>
-
           {mode === 'flash' && (
             <button
               type="button"
-              className={`card flip ${flipped ? 'flipped' : ''}`}
+              className={`card flash ${flipped ? 'revealed' : ''}`}
               onClick={() => setFlipped((f) => !f)}
             >
-              <div className="face front">
-                <div className="en">{current.en}</div>
-                <div className="hint">Çevirmek için dokun / Space</div>
-              </div>
-              <div className="face back">
-                <div className="tr">{current.tr}</div>
-                <div className="ex">{boldPhrase(current.ex, current.en)}</div>
-              </div>
+              {!flipped ? (
+                <>
+                  <div className="prompt-label">Cümleyi oku</div>
+                  <div className="sentence">{boldPhrase(current.ex, current.en)}</div>
+                  <div className="hint">Anlam için dokun</div>
+                </>
+              ) : (
+                <>
+                  <div className="prompt-label">Anlam</div>
+                  <div className="target">{current.en}</div>
+                  <div className="tr">{current.tr}</div>
+                  {current.morph && <div className="morph">{current.morph}</div>}
+                  <div className="ex muted">{boldPhrase(current.ex, current.en)}</div>
+                </>
+              )}
             </button>
           )}
 
           {mode === 'type' && (
             <div className="card quiz">
-              <div className="prompt-label">Türkçe → İngilizce yaz</div>
-              <div className="tr big">{current.tr}</div>
+              <div className="prompt-label">Boşluğu doldur</div>
+              <div className="tr soft">{current.tr}</div>
+              <div className="sentence cloze">{blankPhrase(current.ex, current.en)}</div>
               <input
                 className="type-input"
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
-                placeholder="İngilizce karşılığı..."
+                placeholder="İfade..."
                 autoFocus
                 disabled={answered}
               />
               {answered && (
                 <div className={wasCorrect ? 'feedback ok' : 'feedback bad'}>
-                  {wasCorrect ? 'Doğru!' : 'Yanlış'}
-                  <div className="correct-line">
-                    <strong>{current.en}</strong>
-                  </div>
+                  {wasCorrect ? 'Doğru' : 'Yanlış'}
+                  <div className="target">{current.en}</div>
                   <div className="ex">{boldPhrase(current.ex, current.en)}</div>
-                  <SpeakButton text={current.en} />
+                  {current.morph && <div className="morph">{current.morph}</div>}
+                  <SpeakButton text={current.ex || current.en} />
                 </div>
               )}
             </div>
@@ -316,8 +321,9 @@ export default function App() {
 
           {mode === 'mc' && (
             <div className="card quiz">
-              <div className="prompt-label">Türkçe → doğru İngilizceyi seç</div>
-              <div className="tr big">{current.tr}</div>
+              <div className="prompt-label">Doğru ifadeyi seç</div>
+              <div className="tr soft">{current.tr}</div>
+              <div className="sentence cloze">{blankPhrase(current.ex, current.en)}</div>
               <div className="options">
                 {options.map((opt, i) => (
                   <button
@@ -343,9 +349,10 @@ export default function App() {
               </div>
               {answered && (
                 <div className={wasCorrect ? 'feedback ok' : 'feedback bad'}>
-                  {wasCorrect ? 'Doğru!' : `Doğru cevap: ${current.en}`}
+                  {wasCorrect ? 'Doğru' : `Doğru: ${current.en}`}
                   <div className="ex">{boldPhrase(current.ex, current.en)}</div>
-                  <SpeakButton text={current.en} />
+                  {current.morph && <div className="morph">{current.morph}</div>}
+                  <SpeakButton text={current.ex || current.en} />
                 </div>
               )}
             </div>
@@ -353,9 +360,9 @@ export default function App() {
 
           {mode === 'listen' && (
             <div className="card quiz">
-              <div className="prompt-label">Dinle → doğru Türkçeyi seç</div>
+              <div className="prompt-label">Cümleyi dinle → Türkçe seç</div>
               <div className="listen-row">
-                <SpeakButton text={current.en} label="Tekrar dinle" />
+                <SpeakButton text={current.ex || current.en} label="Tekrar dinle" />
               </div>
               <div className="options">
                 {options.map((opt, i) => (
@@ -382,11 +389,10 @@ export default function App() {
               </div>
               {answered && (
                 <div className={wasCorrect ? 'feedback ok' : 'feedback bad'}>
-                  {wasCorrect ? 'Doğru!' : `Doğru: ${current.tr}`}
-                  <div className="correct-line">
-                    <strong>{current.en}</strong>
-                  </div>
+                  {wasCorrect ? 'Doğru' : `Doğru: ${current.tr}`}
+                  <div className="target">{current.en}</div>
                   <div className="ex">{boldPhrase(current.ex, current.en)}</div>
+                  {current.morph && <div className="morph">{current.morph}</div>}
                 </div>
               )}
             </div>
@@ -395,7 +401,7 @@ export default function App() {
           <div className="actions">
             {mode === 'flash' && (
               <>
-                <SpeakButton text={current.en} />
+                <SpeakButton text={current.ex || current.en} />
                 <button type="button" className="btn secondary" onClick={() => advance(false)}>
                   Bilmiyorum
                 </button>
@@ -407,31 +413,25 @@ export default function App() {
                     else advance(true);
                   }}
                 >
-                  {flipped ? 'Biliyorum' : 'Çevir'}
+                  {flipped ? 'Biliyorum' : 'Göster'}
                 </button>
               </>
             )}
             {mode === 'type' && !answered && (
               <button type="button" className="btn primary" onClick={submitTyped}>
-                Kontrol et (Enter)
+                Kontrol
               </button>
             )}
             {(mode === 'type' || mode === 'mc' || mode === 'listen') && answered && (
               <button type="button" className="btn primary" onClick={() => advance(!!wasCorrect)}>
-                Sonraki (Enter)
+                Sonraki
               </button>
             )}
           </div>
-
-          <p className="shortcuts">
-            Kısayollar: Space = çevir · Enter = onay / sonraki · 1–4 = seçenek
-          </p>
         </section>
       )}
 
-      <footer className="footer">
-        {VOCAB.length} ifade · Leitner kutuları localStorage&apos;da · Web Speech API (en-US)
-      </footer>
+      <footer className="footer">{VOCAB.length} cümle · ilerleme bu cihazda</footer>
     </div>
   );
 }
