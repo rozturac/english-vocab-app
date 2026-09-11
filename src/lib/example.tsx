@@ -28,16 +28,3 @@ export function boldPhrase(example: string, phrase: string): ReactNode {
   }
   return example;
 }
-
-/** Replace the target phrase with a blank for cloze quizzes. */
-export function blankPhrase(example: string, phrase: string): string {
-  if (!example) return example;
-  for (const p of candidates(phrase)) {
-    const idx = example.toLowerCase().indexOf(p.toLowerCase());
-    if (idx >= 0) {
-      const blank = '______';
-      return example.slice(0, idx) + blank + example.slice(idx + p.length);
-    }
-  }
-  return `${example} (______)`;
-}

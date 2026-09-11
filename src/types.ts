@@ -3,12 +3,13 @@ export type VocabItem = {
   t: string;
   en: string;
   tr: string;
+  /** English example sentence (target phrase appears inside). */
   ex: string;
+  /** Full natural Turkish translation of `ex`. */
+  exTr: string;
   /** Optional short morphology tip */
   morph?: string;
 };
-
-export type StudyMode = 'flash' | 'type' | 'mc' | 'listen';
 
 /** Leitner box 0–5; higher = better known */
 export type CardProgress = {

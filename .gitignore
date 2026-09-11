@@ -27,3 +27,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+.venv/
+scripts/extr_cache.json

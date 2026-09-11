@@ -145,8 +145,18 @@ export function buildDailyQueue(
   const news = unseen.filter((x) => newSet.has(cardId(x)));
   // due reviews not already in news
   const dueOnly = due.filter((x) => !newSet.has(cardId(x)));
-  const queue = [...dueOnly, ...news];
+  // Mix reviews + new cards so sessions are not sequential by day/order.
+  const queue = shuffleItems([...dueOnly, ...news]);
   return { queue, state: nextState };
+}
+
+function shuffleItems<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export function resetProgress(): ProgressState {
