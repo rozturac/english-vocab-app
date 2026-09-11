@@ -40,3 +40,7 @@ npm run preview
 - Ses için tarayıcıda `speechSynthesis` gerekir (Chrome/Edge/Safari genelde tamam).
 - İlerleme yalnızca bu tarayıcının localStorage’ında tutulur.
 - Örnek cümleler script + curated liste ile üretilmiştir; bazı genel kelimelerde şablon tadı kalabilir — `scripts/curated_examples.json` ile iyileştirilebilir.
+
+## Live
+
+https://rozturac.github.io/english-vocab-app/
