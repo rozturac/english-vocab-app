@@ -5,11 +5,20 @@ type Props = {
   due: number;
   showDetail: boolean;
   onToggleDetail: () => void;
+  onReset: () => void;
 };
 
-export function StatsBar({ idx, queueLen, streak, due, showDetail, onToggleDetail }: Props) {
+export function StatsBar({
+  idx,
+  queueLen,
+  streak,
+  due,
+  showDetail,
+  onToggleDetail,
+  onReset,
+}: Props) {
   const n = queueLen ? Math.min(idx + 1, queueLen) : 0;
-  const progress = `${n} / ${queueLen} kart`;
+  const progress = `${n} / ${queueLen} cümle`;
   return (
     <div className="stats-simple" aria-label="Oturum durumu">
       <span className="progress-count">{progress}</span>
@@ -17,10 +26,15 @@ export function StatsBar({ idx, queueLen, streak, due, showDetail, onToggleDetai
         {showDetail ? 'Detayı gizle' : 'Detay'}
       </button>
       {showDetail && (
-        <span className="stats-detail">
-          Üst üste gün: {streak}
-          {due > 0 ? ` · Bugün tekrar: ${due}` : ''}
-        </span>
+        <>
+          <span className="stats-detail">
+            Üst üste gün: {streak}
+            {due > 0 ? ` · Bugün tekrar: ${due}` : ''}
+          </span>
+          <button type="button" className="btn ghost reset-btn" onClick={onReset}>
+            Sıfırla
+          </button>
+        </>
       )}
     </div>
   );

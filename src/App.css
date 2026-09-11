@@ -312,3 +312,21 @@ button { cursor: pointer; }
 .feedback .tool-row {
   margin-bottom: 0.45rem;
 }
+
+.blank {
+  display: inline-block;
+  min-width: 4.2ch;
+  padding: 0 0.15em;
+  border-bottom: 2px solid var(--accent2);
+  color: var(--accent2);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.reset-btn {
+  min-height: 36px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  color: #ff9aa4;
+  border-color: rgba(255, 107, 122, 0.35);
+}

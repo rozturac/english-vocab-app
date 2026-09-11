@@ -6,12 +6,12 @@ Sentence-first English vocabulary practice (Turkish UI).
 
 ## Study flow
 
-Primary mode is **Seç** (multiple choice):
+Two directions, **Seç** (4 options):
 
-1. Read the English sentence (target phrase highlighted)
-2. Choose the Turkish meaning of the highlighted phrase (4 options)
-3. After answering, see the full Turkish sentence (`exTr`) + optional morph tip
-4. Optional: 🔊 Dinle · “Çeviriyi göster” before answering
+- **TR → EN:** Turkish sentence with the target meaning blanked (`____`); pick the English `en`. After answering: English `ex` (target bold) + 🔊 Dinle + full `exTr`.
+- **EN → TR:** English sentence with the target highlighted; pick the Turkish `exTr`. After answering: full `exTr` + gloss.
+
+Distractors come from the same theme and similar length, not random jargon.
 
 Progress uses Leitner boxes in `localStorage` (card ids: `{day}::{en}`).
 
